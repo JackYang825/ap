@@ -80,10 +80,10 @@ experiment:
     accelerator: gpu
     log_every_n_steps: 1
     deterministic: False
-    strategy: ddp
+    strategy: ddp_find_unused_parameters_true
     check_val_every_n_epoch: 1
     accumulate_grad_batches: 1
-    precision: 16
+#    precision: 16
   checkpointer:
     dirpath: ckpt/${experiment.wandb.project}/${experiment.wandb.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
     save_last: True

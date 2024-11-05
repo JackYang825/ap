@@ -6,6 +6,8 @@ import torch.nn.functional as F
 """
 frame
 """
+
+
 class FrameAvergaging(nn.Module):
 
     def __init__(self):
@@ -51,7 +53,7 @@ class FAEncoder(FrameAvergaging):
 
     def forward(self, x):
 
-        seq, cords, mask = x['noisy_seqs'], x['noisy_cords'], x['mask']
+        seq, cords, mask = x['noise_seq'], x['noise_xyz'], x['pad_mask']
 
         B, N = seq.size(0), seq.size(1)
         h_X, _, _ = self.create_frame(cords[:,:,1], mask)
@@ -108,29 +110,37 @@ class AllAtomEnergyModel(FARigidModel):
 
         self.mse_loss = nn.MSELoss()
         self.encoder = FAEncoder(args)
-        self.W_o = nn.Sequential(
+        self.noise_pred_head = nn.Sequential(
             nn.Linear(args.hidden_size, args.hidden_size),
             nn.SiLU(),
             nn.Linear(args.hidden_size, 14 * 3),
         )
 
-    def forward(self, X):
+        self.aatype_pred_head = nn.Sequential(
+            nn.Linear(args.hidden_size, args.hidden_size),
+            nn.SiLU(),
+            nn.Linear(args.hidden_size, args.hidden_size),
+            nn.SiLU(),
+            nn.Linear(args.hidden_size, args.vocab_size),
+        )
 
-        noisy_seqs, noisy_cords, mask = X['noisy_seqs'], X['noisy_cords'], X['mask']
-        h = self.encoder(X)
-        h = self.W_o(h)
+    def forward(self, batch):
 
-        h = h.reshape(noisy_seqs.size(0), -1, 14, 3)
+        noisy_seqs, noisy_cords, mask = batch['noise_seq'], batch['noise_xyz'], batch['pad_mask']
+        h = self.encoder(batch)
 
-        total_loss = 0
-        # guassian loss
-        guassian_loss = F.mse_loss(h, hat_t, reduction='none')
-        guassian_loss = (guassian_loss * mask.unsqueeze(-1).unsqueeze(-1)).sum()
-        total_loss += guassian_loss
-        # print(f'loss: {loss}')
+        pred_noise = self.noise_pred_head(h)
+        pred_noise = pred_noise.reshape(noisy_seqs.size(0), -1, 14, 3)
 
-        return {}
+        pred_noise = pred_noise * (batch['atom_mask'] * batch['pad_mask'].unsqueeze(-1).unsqueeze(-1)).float()
 
+        pred_aa = self.aatype_pred_head(h) * batch['pad_mask'].unsqueeze(-1).float()
+
+
+        return {
+            'pred_aa': pred_aa,
+            'pred_noise': pred_noise,
+        }
 
 
 

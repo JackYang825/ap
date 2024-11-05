@@ -6,8 +6,8 @@ import tree
 import torch
 import random
 from torch.utils.data import Dataset
-# from sample.ap.aa_model import make_indep
-from sample.ap.data.data import process_pdb
+from sample.ap.aa_model import make_indep
+# from sample.ap.data.data import process_pdb
 
 PDB_DATA_BASE = '/nfs-userfs/yangyuxing/data/bd/rep/'
 
@@ -53,16 +53,16 @@ class PdbDataset(Dataset):
     def process_csv_row(self, csv_row):
         item_list = csv_row.values.tolist()
         item = item_list[0]
-        feats = process_pdb(f'{PDB_DATA_BASE}{item}')
-        return feats
-        # feats = make_indep(f'{PDB_DATA_BASE}{item}')
-        # return {
-        #     'seq': feats.seq,
-        #     'xyz': feats.xyz,
-        #     'bond_feats': feats.bond_feats,
-        #     'is_sm': feats.is_sm,
-        #     'pad_mask': None
-        # }
+        # feats = process_pdb(f'{PDB_DATA_BASE}{item}')
+        # return feats
+        feats = make_indep(f'{PDB_DATA_BASE}{item}')
+        return {
+            'seq': feats.seq,
+            'xyz': feats.xyz,
+            'bond_feats': feats.bond_feats,
+            'is_sm': feats.is_sm,
+            'pad_mask': None
+        }
 
 """
 ex:

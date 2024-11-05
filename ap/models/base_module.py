@@ -20,7 +20,8 @@ from sample.ap.data.interpolant import *
 # from data import so3_utils
 # from data import residue_constants
 # from experiments import utils as eu
-from sample.ap.models.flow_model import FlowModel
+# from sample.ap.models.flow_model import FlowModel
+from sample.ap.models.base_model import BaseModel
 import torch.nn as nn
 from sample.ap.loss.loss import loss_fn
 
@@ -39,8 +40,8 @@ class BaseModule(LightningModule):
         self.cfg = cfg
 
 
-        # self.model = BaseModel(cfg.model)
-        self.model = FlowModel(cfg.model)
+        self.model = BaseModel(cfg.model)
+        # self.model = FlowModel(cfg.model)
 
         # Set-up interpolant
         self.interpolant = Interpolant(cfg.interpolant)
@@ -64,9 +65,6 @@ class BaseModule(LightningModule):
 
         batch_data = self.interpolant.corrupt_batch(batch)
         batch_losses = self.model_step(batch_data)
-
-        batch_losses = batch_losses.sum()
-        print(batch_losses)
         return batch_losses
 
     def model_step(self, batch):
