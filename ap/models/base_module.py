@@ -10,6 +10,8 @@ import logging
 import torch.distributed as dist
 from pytorch_lightning import LightningModule
 from sample.ap.data.interpolant import *
+from pytorch_lightning.loggers.wandb import WandbLogger
+
 
 # from analysis import metrics
 # from analysis import utils as au
@@ -65,14 +67,24 @@ class BaseModule(LightningModule):
 
         batch_data = self.interpolant.corrupt_batch(batch)
         batch_losses = self.model_step(batch_data)
-        return batch_losses
+        total_losses = {
+            k: torch.mean(v) for k,v in batch_losses.items()
+        }
+
+        num_batch = batch['seq'].shape[0]
+
+        for k, v in total_losses.items():
+            self._log_scalar(
+                f"train/{k}", v, prog_bar=False, batch_size=num_batch)
+
+        return batch_losses['total_loss']
 
     def model_step(self, batch):
         """add loss"""
         model_output = self.model(batch)
-        loss = loss_fn(self.cfg, batch, model_output)
+        batch_losses = loss_fn(self.cfg, batch, model_output)
 
-        return loss
+        return batch_losses
 
 
 
@@ -82,6 +94,30 @@ class BaseModule(LightningModule):
             **self._exp_cfg.optimizer
         )
 
+
+    def _log_scalar(
+            self,
+            key,
+            value,
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True,
+            batch_size=None,
+            sync_dist=False,
+            rank_zero_only=True
+        ):
+        if sync_dist and rank_zero_only:
+            raise ValueError('Unable to sync dist when rank_zero_only=True')
+        self.log(
+            key,
+            value,
+            on_step=on_step,
+            on_epoch=on_epoch,
+            prog_bar=prog_bar,
+            batch_size=batch_size,
+            sync_dist=sync_dist,
+            rank_zero_only=rank_zero_only
+        )
 
 
 

@@ -57,20 +57,16 @@ experiment:
   num_devices: 1
   warm_start: null
   warm_start_cfg_override: True
+  dist_loss_filter: 8.
   training:
-    mask_plddt: True
-    bb_atom_scale: 0.1
-    trans_scale: 0.1
-    translation_loss_weight: 2.0
-    t_normalize_clip: 0.9
-    rotation_loss_weights: 1.0
-    aux_loss_weight: 0.0
-    aux_loss_use_bb_loss: True
-    aux_loss_use_pair_loss: True
-    aux_loss_t_pass: 0.5
+    guassian_loss_weight: 1.0
+    aa_loss_weight: 1.0
+    aux_loss_bb_loss_weight: 1.0
+    dist_mat_loss_weight: 1.0
+
   wandb:
     name: ${data.task}_${data.dataset}
-    project: se3-fm
+    project: ap
   optimizer:
     lr: 0.0001
   trainer:
@@ -92,5 +88,6 @@ experiment:
     mode: max
   # Keep this null. Will be populated at runtime.
   inference_dir: null
+
 
 

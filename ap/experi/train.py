@@ -49,10 +49,15 @@ class Experiment:
     def train(self):
         callbacks = []
         if self._exp_cfg.debug:
-            log.info(f'Debug mode')
+            log.info("Debug mode.")
             logger = None
+            # self._train_device_ids = [self._train_device_ids[0]]
+            # self._data_cfg.loader.num_workers = 0
         else:
-            # checkpoint directiory
+            logger = WandbLogger(
+                **self._exp_cfg.wandb,
+            )
+
             ckpt_dir = self._exp_cfg.checkpointer.dirpath
             os.makedirs(ckpt_dir, exist_ok=True)
             log.info(f"Checkpoints saved to {ckpt_dir}")
@@ -62,6 +67,7 @@ class Experiment:
 
         trainer = Trainer(
             **self._exp_cfg.trainer,
+            logger=logger,
             callbacks=callbacks,
             enable_progress_bar=True,
             enable_model_summary=True,

@@ -35,6 +35,9 @@ scope_dataset:
 pdb_dataset:
   seed: ${shared.seed}
   csv_path: /nfs-userfs/yangyuxing/data/bd/rep_test
+  data_base: /nfs-userfs/yangyuxing/data/bd/rep/
+#  csv_path: /nfs-userfs/yangyuxing/data/test/pcqm4m/sm_test
+#  data_base: /nfs-userfs/yangyuxing/data/test/pcqm4m/pdbs/
   cluster_path: ./metadata/pdb.clusters
   max_cache_size: ${shared.max_cache_size}
   cache_num_res: 0

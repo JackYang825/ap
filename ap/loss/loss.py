@@ -7,12 +7,10 @@ import numpy as np
 
 
 
-
-
-
-
-
 def loss_fn(args, batch, model_out):
+
+
+    training_cfg = args.experiment.training
 
     pad_mask = batch['pad_mask']
     batch_size, num_res = batch['pad_mask'].shape
@@ -25,10 +23,15 @@ def loss_fn(args, batch, model_out):
         target=gt_aa.flatten().long(),
         reduction='none'
     ).reshape(batch_size, num_res)
-
     aa_loss = sum((aa_loss * pad_mask).sum(dim=-1) / (pad_mask.sum(dim=-1) + 1e-10))
 
-    pred_xyz = batch['noise_xyz'] - model_out['pred_noise']
+
+    # amino acid accuracy
+    arg_pred_aa = torch.argmax(pred_aa, dim=-1)
+    aa_acc = (torch.eq(arg_pred_aa, gt_aa).float() * batch['pad_mask']).sum() / batch['pad_mask'].sum()
+
+
+    pred_xyz = (batch['noise_xyz'] - model_out['pred_noise']) * batch['pad_mask'].unsqueeze(-1).unsqueeze(-1)
     gt_xyz = torch.nan_to_num(batch['xyz'])
 
 
@@ -49,18 +52,30 @@ def loss_fn(args, batch, model_out):
     pred_pair_dists = torch.linalg.norm(
         pred_flat_atoms[:, :, None, :] - pred_flat_atoms[:, None, :, :], dim=-1
     )
+    # No loss on anything >6A
+    proximity_mask = gt_pair_dists < args.experiment.dist_loss_filter
 
     dist_mat_loss = torch.sum(
-        (gt_pair_dists - pred_pair_dists) ** 2, dim=(1, 2)
+        (gt_pair_dists - pred_pair_dists) ** 2 * proximity_mask, dim=(1, 2)
     )
     dist_mat_loss = torch.nan_to_num(dist_mat_loss).mean()
 
-    # total_loss = aa_loss
-    total_loss = guassian_loss + aa_loss + bb_atom_loss + dist_mat_loss
+    total_loss = (guassian_loss * training_cfg.guassian_loss_weight +
+                  aa_loss * training_cfg.aa_loss_weight +
+                  bb_atom_loss * training_cfg.aux_loss_bb_loss_weight +
+                  dist_mat_loss * training_cfg.dist_mat_loss_weight)
 
-    print(f'total: {total_loss.item()}  guassian_loss: {guassian_loss.item()}  aa_loss: {aa_loss.item()}  bb_atom_loss: {bb_atom_loss.item()} dist_mat_loss: {dist_mat_loss.item()}')
 
-    return total_loss
+    # print(f'total: {total_loss.item()}  guassian_loss: {guassian_loss.item()}  aa_loss: {aa_loss.item()}  bb_atom_loss: {bb_atom_loss.item()} dist_mat_loss: {dist_mat_loss.item()}')
+
+    return {
+        'guassian_loss': guassian_loss,
+        'aa_loss': aa_loss,
+        'bb_atom_loss': bb_atom_loss,
+        'dist_mat_loss': dist_mat_loss,
+        'total_loss': total_loss,
+        'aa_acc': aa_acc,
+    }
 
 
 

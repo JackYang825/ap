@@ -104,6 +104,7 @@ def filter_het(pdb_lines, ligand):
     return lines
 
 
+# TODO optimize make_indep seperat
 def make_indep(pdb, ligand=None, center=True):
     chirals = torch.Tensor()
     atom_frames = torch.zeros((0, 3, 2))
@@ -121,9 +122,7 @@ def make_indep(pdb, ligand=None, center=True):
         with open(pdb, 'r') as fh:
             stream = [l for l in fh if "HETATM" in l or "CONECT" in l]
         stream = filter_het(stream, ligand)
-        if not len(stream):
-            raise Exception(f'ligand {ligand} not found in pdb: {pdb}')
-
+    if len(stream):
         mol, msa_sm, ins_sm, xyz_sm, _ = parse_mol("".join(stream), filetype="pdb", string=True)
         G = rf2aa.util.get_nxgraph(mol)
         atom_frames = rf2aa.util.get_atom_frames(msa_sm, G)
@@ -141,19 +140,27 @@ def make_indep(pdb, ligand=None, center=True):
     xyz = torch.full((N_symmetry, sum(Ls), ChemData().NTOTAL, 3), np.nan).float()
     mask = torch.full(xyz.shape[:-1], False).bool()
     xyz[:, :Ls[0], :nprotatoms, :] = xyz_prot.expand(N_symmetry, Ls[0], nprotatoms, 3)
-    if ligand:
+    if ligand and len(stream):
         xyz[:, Ls[0]:, 1, :] = xyz_sm
     xyz = xyz[0]
     mask[:, :protein_L, :nprotatoms] = mask_prot.expand(N_symmetry, Ls[0], nprotatoms)
-    idx_sm = torch.arange(max(idx_prot), max(idx_prot) + Ls[1]) + 200
+    if len(idx_prot) == 0:
+        max_idx_prot = 0
+    else:
+        max_idx_prot = max(idx_prot)
+    # idx_sm = torch.arange(max(idx_prot), max(idx_prot) + Ls[1]) + 200
+    idx_sm = torch.arange(max_idx_prot, max_idx_prot + Ls[1]) + 200
     idx_pdb = torch.concat([torch.tensor(idx_prot), idx_sm])
 
     seq = msa[0]
 
     bond_feats = torch.zeros((sum(Ls), sum(Ls))).long()
-    bond_feats[:Ls[0], :Ls[0]] = rf2aa.util.get_protein_bond_feats(Ls[0])
-    if ligand:
+
+    if Ls[0] > 0:
+        bond_feats[:Ls[0], :Ls[0]] = rf2aa.util.get_protein_bond_feats(Ls[0])
+    if ligand and len(stream):
         bond_feats[Ls[0]:, Ls[0]:] = rf2aa.util.get_bond_feats(mol)
+
 
     same_chain = torch.zeros((sum(Ls), sum(Ls))).long()
     same_chain[:Ls[0], :Ls[0]] = 1
@@ -192,9 +199,12 @@ if __name__ == '__main__':
     indep = make_indep(pdb_path, ligand='q')
     print(indep)
 
+
 """
 AA
 {'ALA': 0, 'ARG': 1, 'ASN': 2, 'ASP': 3, 'CYS': 4, 'GLN': 5, 'GLU': 6, 'GLY': 7, 'HIS': 8, 'ILE': 9, 'LEU': 10, 'LYS': 11, 'MET': 12, 'PHE': 13, 'PRO': 14, 'SER': 15, 'THR': 16, 'TRP': 17, 'TYR': 18, 'VAL': 19, 'UNK': 20, 'MAS': 21, 'MEN': 20}
 
-
 """
+
+
+

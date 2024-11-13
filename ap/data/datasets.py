@@ -27,8 +27,8 @@ class PdbDataset(Dataset):
         self.task = task
         self.raw_csv = pd.read_csv(self._dataset_cfg.csv_path)
         metadata_csv = self._filter_metadata(self.raw_csv)
-
         self.csv = self.raw_csv
+        self.data_base = self._dataset_cfg.data_base
 
     @abc.abstractmethod
     def _filter_metadata(self, raw_csv: pd.DataFrame) -> pd.DataFrame:
@@ -53,9 +53,7 @@ class PdbDataset(Dataset):
     def process_csv_row(self, csv_row):
         item_list = csv_row.values.tolist()
         item = item_list[0]
-        # feats = process_pdb(f'{PDB_DATA_BASE}{item}')
-        # return feats
-        feats = make_indep(f'{PDB_DATA_BASE}{item}')
+        feats = make_indep(f'{self.data_base}{item}', ligand='any')
         return {
             'seq': feats.seq,
             'xyz': feats.xyz,
